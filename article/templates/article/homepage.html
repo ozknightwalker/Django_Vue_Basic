@@ -1,0 +1,181 @@
+{% include 'index.html' %}
+
+{% block content %}
+{%  verbatim %}
+<div id="starting">
+    <div class="container">
+        <div class="row">
+            <h1>
+                List of Articles
+                <button  type="button" class="btn btn-primary" data-toggle="modal" data-target="#addArticleModal">ADD ARTICLE</button>
+            </h1>
+            <table class="table">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Heading</th>
+                    <th scope="col">Action</th>
+                </tr>
+                <article-item
+                        v-for="article in articles"
+                        v-bind:article="article"
+                        v-bind:key="article.id"></article-item>
+            </table>
+        </div>
+    </div>
+    <div class="loading" v-if="loading===true">Loading&#8230;</div>
+    <div class="modal fade" id="addArticleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">ADD ARTICLE</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form v-on:submit.prevent="addArticle">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="article_heading">Article Heading</label>
+                            <input type="text" class="form-control" id="article_heading" placeholder="Enter Article Heading" v-model="newArticle.article_heading" required="required" >
+                        </div>
+                        <div class="form-group">
+                            <label for="article_body">Article Body</label>
+                            <textarea class="form-control" id="article_body" placeholder="Enter Article Body" v-model="newArticle.article_body" required="required" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="loading" v-if="loading===true">Loading&#8230;</div>          
+    </div>
+    <div class="modal fade" id="editArticleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">EDIT ARTICLE</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form v-on:submit.prevent="updateArticle()">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="article_heading">Article Heading</label>
+                            <input type="text" class="form-control" id="article_heading" placeholder="Enter Article Heading" v-model="currentArticle.article_heading" required="required" >
+                        </div>
+                        <div class="form-group">
+                            <label for="article_body">Article Body</label>
+                            <textarea class="form-control" id="article_body" placeholder="Enter Article Body" v-model="currentArticle.article_body" required="required" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary m-progress" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="loading" v-if="loading===true">Loading&#8230;</div>
+    </div>
+</div>
+{% endverbatim %}
+{% endblock %}
+
+{% block js %}
+{% verbatim %}
+<script>
+    Vue.component('article-item', {
+      props: ['article'],
+      template: '<tr><th scope="row">{{ article.article_id }}</th><td>{{ article.article_heading }}</td><td><button class="btn btn-info" v-on:click="getArticle(article.article_id)">Edit</button><button class="btn btn-danger" v-on:click="deleteArticle(article.article_id)">Delete</button></td></tr>'
+    })
+
+    new Vue({
+        el: '#starting',
+        // delimiters: [‘${‘,’}’],
+        data: {
+            articles: [],
+            loading: false,
+            currentArticle: {},
+            message: null,
+            newArticle: { 
+                article_heading: null,
+                article_body: null 
+            },
+        },
+        mounted: function() {
+            this.getArticles();
+        },
+        methods: {
+            getArticles: function() {
+                let resource = this.$resource('/api/article/');
+                this.loading = true;
+                resource.get({})
+                    .then((response) => {
+                        this.articles = response.data;
+                        this.loading = false;
+                    }).catch((err) => {
+                        this.loading = false;
+                        console.log(err);
+                    });
+            },
+            getArticle: function(id) {
+                let resource = this.$resource('/api/article{/id}/');
+                this.loading = true;
+                resource.get({id: id})
+                    .then((response) => {
+                        this.currentArticle = response.data;
+                        $("#editArticleModal").modal('show');
+                        this.loading = false;
+                    }).catch((err) => {
+                        this.loading = false;
+                        console.log(err);
+                    });
+            },
+            addArticle: function() {
+                let resource = this.$resource('/api/article/');
+                this.loading = true;
+                resource.save({}, this.newArticle)
+                    .then((response) => {
+                        this.loading = false;
+                        $("#addArticleModal").modal('hide');
+                        this.getArticles();
+                    }).catch((err) => {
+                        this.loading = false;
+                        console.log(err);
+                    });
+            },
+            updateArticle: function() {
+                let resource = this.$resource('/api/article{/id}/');
+                this.loading = true;
+                resource.update({id: this.currentArticle.article_id}, this.currentArticle)
+                    .then((response) => {
+                        this.loading = false;
+                        this.currentArticle = response.data;
+                        $("#editArticleModal").modal('hide');
+                        this.getArticles();
+                    }).catch((err) => {
+                        this.loading = false;
+                        console.log(err);
+                    });
+            },
+            deleteArticle: function(id) {
+                let resource = this.$resource('/api/article{/id}/');
+                this.loading = true;
+                resource.delete({id: id})
+                    .then((response) => {
+                        this.loading = false;
+                        this.getArticles();
+                    }).catch((err) => {
+                        this.loading = false;
+                        console.log(err);
+                    });
+            },
+        }
+    });
+</script>
+{% endverbatim %}
+{% endblock %}
